@@ -102,8 +102,15 @@ that emit versioned events. Keep it synchronized with every
 hard-coded site count because tests and helper examples may also contain macro
 calls.
 
-`contracts/staking/src/lib.rs` was inspected but has no event emissions
-yet -- once it starts emitting it should adopt the macro from day one.
+`contracts/staking/src/lib.rs` already emits several plain
+(unversioned) events via `env.events().publish(...)` directly, predating
+this scheme -- it does not depend on `soroban_amm_sdk`, so it was left on
+its existing style rather than migrated to `emit_versioned_event!` as
+part of an unrelated change (see the new `boost_exp` event below, added
+for issue #699, which follows the same existing plain-event convention
+for consistency with the rest of the contract). A full migration of
+`staking` onto the versioned scheme is tracked separately and out of
+scope here.
 
 Test files in each of those crates were updated to decode the
 versioned payload shape; see `__ver_N_locals+ assert_eq(!version,
@@ -195,6 +202,21 @@ schema version together when selecting a decoder.
 | `executed` | `(proposal_id: u64, kind: ProposalKind)` |
 | `vote_unlocked` | `(proposal_id: u64, locked: i128)` |
 | `vetoed` | `(proposal_id: u64, multisig: Address, now: u64, discussion_end: u64)` |
+
+### Staking — `contracts/staking/src/lib.rs` (unversioned, plain events)
+
+Staking predates this scheme and is not yet migrated (see note above), so
+its events carry no `schema_version` prefix -- the payload below is the
+on-wire shape as-is, not `(schema_version, payload)`.
+
+| Event | Topics | Payload |
+|---|---|---|
+| `boost_exp` | — | `(staker: Address, previous_boost: i128, settled_boost: i128)` |
+
+`boost_exp` (issue #699) is emitted by `settle_boost`/`settle_boost_batch`
+only when a lock's stored boost is actually reduced from a stale
+post-expiry value down to `min_boost` -- it does not fire on a no-op call
+(active lock, already-settled staker, or unknown address).
 
 ### Consumer rules
 
