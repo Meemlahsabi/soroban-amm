@@ -167,6 +167,16 @@ Defined in [contracts/concentrated_liquidity/src/lib.rs](../contracts/concentrat
 | 20 | `NotNftOwner` | Caller is not current owner of position NFT. | Call method from NFT owner account. |
 | 21 | `NftContractChangeBlocked` | Admin attempted NFT contract change while tokenized positions exist. | Untokenize/burn active position NFTs before changing contract. |
 | 22 | `RangeOrderExists` | Range order already active on specified range for caller. | Withdraw existing range order before placing a new one. |
+| 23 | `ExactOutNotFullyFilled` | `swap_exact_out` or `quote_exact_out` (#696) could not fill the requested `amount_out` in full before running out of initialized ticks or hitting `sqrt_price_limit_x96`. Exact-out has no meaningful partial fill. | Reduce `amount_out`, widen `sqrt_price_limit_x96`, or add liquidity to the range being traded against. |
+
+`swap_exact_out(env, sender, zero_for_one, amount_out, sqrt_price_limit_x96,
+max_amount_in, deadline)` (#696) is the mirror of `swap`: it fixes the
+*output* amount instead of the input, reverting with `SlippageExceeded` if
+the required input exceeds `max_amount_in` and with
+`ExactOutNotFullyFilled` on a partial fill. `quote_exact_out(env,
+zero_for_one, amount_out, sqrt_price_limit_x96)` is a read-only simulation
+sharing the same tick-walking core, so it can never disagree with what
+`swap_exact_out` actually charges on the same pool state.
 
 ---
 
