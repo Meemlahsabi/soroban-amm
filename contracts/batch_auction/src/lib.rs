@@ -15,8 +15,7 @@
 
 #![no_std]
 
-use amm::AmmPoolClient;
-use concentrated_liquidity::ConcentratedLiquidityClient;
+use pool_interfaces::{AmmPoolClient, ConcentratedLiquidityClient};
 use soroban_sdk::token::Client as SepTokenClient;
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Symbol, Vec,
@@ -841,7 +840,7 @@ impl BatchAuction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use amm::AmmPool;
+    use amm::{AmmPool, AmmPoolClient};
     use concentrated_liquidity::{ConcentratedLiquidity, ConcentratedLiquidityClient};
     use soroban_sdk::{
         testutils::{Address as _, Ledger},

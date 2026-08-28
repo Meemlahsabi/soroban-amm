@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "contracts/amm",
   "contracts/amm-sdk",
+  "contracts/pool_interfaces",
   "contracts/concentrated_liquidity",
   "contracts/factory",
   "contracts/router",
