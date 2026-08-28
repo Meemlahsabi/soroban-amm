@@ -631,23 +631,34 @@ impl ConcentratedLiquidity {
         let current_tick: i32 = env.storage().instance().get(&DataKey::CurrentTick).unwrap();
         let token_a: Address = env.storage().instance().get(&DataKey::TokenA).unwrap();
         let token_b: Address = env.storage().instance().get(&DataKey::TokenB).unwrap();
-        let (amount_a, amount_b) = Self::amounts_for_liquidity(
+        // Derive liquidity from the desired amounts using the same
+        // sqrtPriceX96 math (`liquidity_from_amounts`) that burn/collect use
+        // to convert liquidity back into amounts, then derive the *actual*
+        // amounts that liquidity requires via `amounts_for_liquidity_to_burn`.
+        // The previous code computed the transferred amounts via a separate,
+        // linear-in-price formula (`amounts_for_liquidity`) that didn't agree
+        // with the sqrt-price math used everywhere else. That mismatch let a
+        // position's recorded `liquidity` diverge from the tokens actually
+        // deposited for it, which then surfaced as later withdrawals wanting
+        // more of a token than the pool actually held (issue exposed by
+        // `full_burn_via_token_id_does_not_leak_fees_to_provider`).
+        let liquidity = Self::liquidity_from_amounts(
             current_tick,
             lower_tick,
             upper_tick,
             amount_a_desired,
             amount_b_desired,
         );
+        if liquidity <= 0 {
+            return Err(ClError::ZeroLiquidity);
+        }
+        let (amount_a, amount_b) =
+            Self::amounts_for_liquidity_to_burn(current_tick, lower_tick, upper_tick, liquidity);
         if amount_a < 0 || amount_b < 0 {
             return Err(ClError::ZeroAmounts);
         }
         if amount_a < min_a || amount_b < min_b {
             return Err(ClError::SlippageExceeded);
-        }
-        let liquidity =
-            Self::liquidity_from_amounts(current_tick, lower_tick, upper_tick, amount_a, amount_b);
-        if liquidity <= 0 {
-            return Err(ClError::ZeroLiquidity);
         }
         if amount_a > 0 {
             TokenClient::new(&env, &token_a).transfer(
@@ -3287,29 +3298,6 @@ impl ConcentratedLiquidity {
         }
     }
 
-    /// Compute actual token amounts from desired amounts based on current price position.
-    /// When out of range, only one token type is used. When in range, amounts are
-    /// distributed proportionally based on the price within the range.
-    fn amounts_for_liquidity(ct: i32, lt: i32, ut: i32, ad: i128, bd: i128) -> (i128, i128) {
-        if ct < lt {
-            return (ad, 0);
-        }
-        if ct >= ut {
-            return (0, bd);
-        }
-
-        // In-range: distribute amounts based on price position
-        let pl = Self::tick_to_price(lt);
-        let pu = Self::tick_to_price(ut);
-        let pc = Self::tick_to_price(ct);
-        let range = pu - pl;
-        if range == 0 {
-            return (ad / 2, bd / 2);
-        }
-        let below = pc - pl;
-        (ad * (range - below) / range, bd * below / range)
-    }
-
     /// Compute token amounts needed to burn `liquidity` from a position.
     /// Returns (amount_a, amount_b) based on current tick position.
     fn amounts_for_liquidity_to_burn(ct: i32, lt: i32, ut: i32, liquidity: i128) -> (i128, i128) {
@@ -3764,13 +3752,43 @@ impl ConcentratedLiquidity {
             } else {
                 p_c
             };
-            let amount_out = liquidity * (p_c - p_t) / 1000;
-            let sqrt_price_target_x96 = ((p_t as u128) * (1 << 96)) / 1000;
+            // amount_out = liquidity * (p_c - p_t) / 1000. Computed via the
+            // algebraically-equivalent `liquidity * p_c^2 * amount_in_after_fee
+            // / (1000 * denom)` instead of subtracting p_c - p_t directly:
+            // for a small trade against deep liquidity, p_t rounds to the same
+            // integer as p_c at this fixed-point scale, which would silently
+            // zero out amount_out even though the trade is real.
+            let amount_out = liquidity * p_c * p_c * amount_in_after_fee / (1000 * denom);
+            let mut sqrt_price_target_x96 = ((p_t as u128) * (1 << 96)) / 1000;
+            // `p_t` is rounded to a 3-significant-digit scale, so a small
+            // trade against deep liquidity can round to the same integer as
+            // `p_c`, leaving the returned Q96 price bit-identical to the
+            // input even though a real, nonzero trade happened. Nudge it by
+            // the smallest representable Q96 step so price always moves in
+            // the traded direction rather than silently freezing.
+            if amount_out > 0 && sqrt_price_target_x96 >= sqrt_price_current_x96 {
+                sqrt_price_target_x96 = sqrt_price_current_x96.saturating_sub(1);
+            }
             (sqrt_price_target_x96, amount_out)
         } else {
             let p_t = p_c + amount_in_after_fee * 1000 / liquidity;
-            let amount_out = liquidity * 1000 * (p_t - p_c) / (p_c * p_t.max(1));
-            let sqrt_price_target_x96 = ((p_t as u128) * (1 << 96)) / 1000;
+            // amount_out = liquidity * 1000 * (p_t - p_c) / (p_c * p_t), with
+            // (p_t - p_c) substituted by its exact value `amount_in_after_fee *
+            // 1000 / liquidity` before any rounding, for the same reason as
+            // the zero_for_one branch above.
+            let denom = p_c * (p_c * liquidity + amount_in_after_fee * 1000);
+            let amount_out = if denom > 0 {
+                1_000_000 * amount_in_after_fee * liquidity / denom
+            } else {
+                0
+            };
+            let mut sqrt_price_target_x96 = ((p_t as u128) * (1 << 96)) / 1000;
+            // See the zero_for_one comment above: nudge upward by one Q96
+            // unit when rounding would otherwise leave the price unchanged
+            // despite a real trade.
+            if amount_out > 0 && sqrt_price_target_x96 <= sqrt_price_current_x96 {
+                sqrt_price_target_x96 = sqrt_price_current_x96.saturating_add(1);
+            }
             (sqrt_price_target_x96, amount_out)
         }
     }
