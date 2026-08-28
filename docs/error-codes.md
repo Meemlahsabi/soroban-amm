@@ -411,6 +411,8 @@ Uses runtime `panic!` and `assert!` preconditions (defined in [contracts/staking
 | `no active lock to extend` | `extend_lock` called with no active lock. | Stake with lock duration first. |
 | `duration must be positive` | Lock duration set to 0. | Specify positive lock duration seconds. |
 | `no pending rewards` | Claim attempted with 0 pending rewards. | Allow rewards to accrue over time. |
+| `batch too large: settle_boost_batch is capped at MAX_BATCH_SIZE entries per call` | `settle_boost_batch` called with more than `MAX_BATCH_SIZE` (50) addresses. | Split the batch into chunks of ≤ 50 addresses per call. |
+| `batch too large: register_existing_stakers is capped at MAX_BATCH_SIZE entries per call` | `register_existing_stakers` migration call given more than `MAX_BATCH_SIZE` (50) addresses. | Split the backfill list into chunks of ≤ 50 addresses per call. |
 
 ---
 
