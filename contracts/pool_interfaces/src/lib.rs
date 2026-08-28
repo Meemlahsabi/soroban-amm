@@ -86,6 +86,15 @@ pub trait AmmPoolInterface {
         deadline: u64,
     ) -> Result<i128, AmmError>;
 
+    fn remove_liquidity(
+        env: Env,
+        provider: Address,
+        shares: i128,
+        min_a: i128,
+        min_b: i128,
+        deadline: u64,
+    ) -> Result<(i128, i128), AmmError>;
+
     fn get_amount_out(env: Env, token_in: Address, amount_in: i128) -> Result<i128, AmmError>;
 
     fn get_amount_in(env: Env, token_out: Address, amount_out: i128) -> i128;
@@ -103,6 +112,8 @@ pub trait FactoryInterface {
 
     fn get_cl_pool(env: Env, token_a: Address, token_b: Address, fee_bps: i128)
         -> Option<Address>;
+
+    fn get_pool_tokens(env: Env, pool: Address) -> Option<(Address, Address)>;
 }
 
 // ── concentrated_liquidity ───────────────────────────────────────────────────
