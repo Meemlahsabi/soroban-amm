@@ -174,6 +174,7 @@ schema version together when selecting a decoder.
 | `coll_fees` | `recipient` | `(lower_tick: i32, upper_tick: i32, total_a: i128, total_b: i128)` |
 | `nft_link` | `provider` | `(token_id: i128, lower_tick: i32, upper_tick: i32)` |
 | `swap` | `sender` | `(zero_for_one: bool, amount_in: i128, amount_out: i128, sqrt_price_x96: i128, current_tick: i32, liquidity: i128)` |
+| `swap_out` | `sender` | `(zero_for_one: bool, amount_in: i128, amount_out: i128, sqrt_price_x96: i128, current_tick: i32)` |
 | `price_upd` | `token_in`, `token_out` | `(amount_in: i128, amount_out: i128, sqrt_price_x96: i128, current_tick: i32)` |
 
 ### Factory — `contracts/factory/src/lib.rs`
@@ -220,3 +221,12 @@ admin/multisig-gated `force_unlock` recovery function emits a `force_unlock`
 event through `emit_versioned_event!`, consistent with every other
 state-mutating call in this contract. The row for it is listed in the
 Constant-product AMM event table above.
+
+## Update (#696)
+
+`contracts/concentrated_liquidity/src/lib.rs` gained one more versioned
+emit site: `swap_exact_out` emits a `swap_out` event through
+`emit_versioned_event!` (payload shape mirrors the existing `swap` event),
+plus reuses the existing `price_upd` event on a price-moving trade,
+consistent with every other state-mutating call in this contract. The row
+for it is listed in the Concentrated-liquidity AMM event table above.
