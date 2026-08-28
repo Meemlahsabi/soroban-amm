@@ -107,7 +107,11 @@ impl ReserveManager {
 
     /// One-time setup. `governance` is the only address permitted to call
     /// `set_min_reserve` and `transfer_governance`.
-    pub fn initialize(env: Env, governance: Address, factory: Address) -> Result<(), ReserveManagerError> {
+    pub fn initialize(
+        env: Env,
+        governance: Address,
+        factory: Address,
+    ) -> Result<(), ReserveManagerError> {
         if env.storage().instance().has(&DataKey::Governance) {
             return Err(ReserveManagerError::AlreadyInitialized);
         }
@@ -194,7 +198,7 @@ impl ReserveManager {
     /// Per-pair requirements are held in persistent storage so each pair is an
     /// independent entry with its own TTL, rather than sharing the single
     /// instance-storage blob loaded on every invocation.
-       pub fn set_min_reserve(
+    pub fn set_min_reserve(
         env: Env,
         token_a: Address,
         token_b: Address,

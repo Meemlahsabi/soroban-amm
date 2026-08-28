@@ -111,16 +111,17 @@ Defined in [contracts/batch_auction/src/lib.rs](../contracts/batch_auction/src/l
 
 ## BatchRouter (`contracts/batch_router`)
 
-Uses runtime `panic!` and `assert!` preconditions (defined in [contracts/batch_router/src/lib.rs](../contracts/batch_router/src/lib.rs)).
+Defined in [contracts/batch_router/src/lib.rs](../contracts/batch_router/src/lib.rs) as `BatchRouterError`.
 
-| Panic / Assert Message | Cause | Remedy |
-|-----------------------|-------|--------|
-| `already initialized` | `initialize` called on an already set up batch router (`DataKey::Admin` exists). | Deploy a fresh batch router contract instance. |
-| `empty batch` | `execute_batch` called with an empty operations array (`ops.is_empty()`). | Provide at least one batch operation. |
-| `deadline expired` | `env.ledger().timestamp() > deadline` during batch execution. | Re-submit batch with a future deadline. |
-| `expected swap result, got {other:?}` | Batch operation result variant mismatch during swap execution. | Ensure batch operation configuration matches expected output type. |
-| `expected add-liquidity result, got {other:?}` | Batch operation result variant mismatch during liquidity addition. | Ensure operation parameters match add-liquidity output variant. |
-| `expected remove-liquidity result, got {other:?}` | Batch operation result variant mismatch during liquidity removal. | Ensure operation parameters match remove-liquidity output variant. |
+| Code | Symbol | Cause | Remedy |
+|------|--------|-------|--------|
+| 1 | `AlreadyInitialized` | `initialize` called on a batch router that already has a `DataKey::Factory` set. | Deploy a fresh batch router contract instance. |
+| 2 | `EmptyBatch` | `execute_batch`, `simulate_batch`, or `validate_batch` called with an empty operations array. | Provide at least one batch operation. |
+| 3 | `BatchTooLarge` | `ops.len()` exceeds `MAX_BATCH_OPS` (200), the ceiling returned by `max_batch_ops`. | Split the batch into multiple calls, each within the ceiling. |
+| 4 | `DeadlineExpired` | `env.ledger().timestamp() > deadline` at batch time. | Re-submit the batch with a future deadline. |
+| 5 | `InvalidAmount` | A `Swap`/`AddLiquidity`/`RemoveLiquidity` op carried a non-positive `amount_in`/`amount_a`/`amount_b`/`shares`. | Ensure every op amount is strictly positive. |
+| 6 | `PoolNotFound` | An op named a pool the configured factory does not recognize (`get_pool_tokens` returned `None`). | Target only pools registered with the batch router's factory. |
+| 7 | `SlippageExceeded` | The simulated or executed output/shares fell below the op's `min_out`/`min_shares`/`min_a`/`min_b` guard. | Loosen the slippage guard or resubmit against fresher pool state. |
 
 ---
 

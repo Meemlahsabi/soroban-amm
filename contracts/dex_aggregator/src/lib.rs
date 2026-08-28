@@ -124,16 +124,12 @@ impl DexAggregator {
         env.storage()
             .instance()
             .set(&DataKey::MaxHops, &Self::DEFAULT_MAX_HOPS);
-        env.storage()
-            .instance()
-            .set(&DataKey::ClPoolCount, &0u32);
+        env.storage().instance().set(&DataKey::ClPoolCount, &0u32);
     }
 
     pub fn set_max_hops(env: Env, max_hops: u32) {
         Self::extend_ttl(&env);
-        env.storage()
-            .instance()
-            .set(&DataKey::MaxHops, &max_hops);
+        env.storage().instance().set(&DataKey::MaxHops, &max_hops);
     }
 
     pub fn register_cl_pool(
@@ -154,20 +150,13 @@ impl DexAggregator {
             .unwrap_or(0);
 
         for i in 0..count {
-            let entry: ClPoolInfo = env
-                .storage()
-                .instance()
-                .get(&DataKey::ClPool(i))
-                .unwrap();
+            let entry: ClPoolInfo = env.storage().instance().get(&DataKey::ClPool(i)).unwrap();
             if entry.pool == pool {
                 return;
             }
         }
 
-        assert!(
-            count < Self::MAX_CL_POOLS,
-            "max CL pools reached"
-        );
+        assert!(count < Self::MAX_CL_POOLS, "max CL pools reached");
 
         env.storage().instance().set(
             &DataKey::ClPool(count),
@@ -184,7 +173,9 @@ impl DexAggregator {
     }
 
     pub fn set_routing_tokens(env: Env, tokens: Vec<Address>) {
-        env.storage().instance().set(&DataKey::RoutingTokens, &tokens);
+        env.storage()
+            .instance()
+            .set(&DataKey::RoutingTokens, &tokens);
     }
 
     pub fn remove_cl_pool(env: Env, pool: Address) {
@@ -199,11 +190,7 @@ impl DexAggregator {
             .unwrap_or(0);
 
         for i in 0..count {
-            let entry: ClPoolInfo = env
-                .storage()
-                .instance()
-                .get(&DataKey::ClPool(i))
-                .unwrap();
+            let entry: ClPoolInfo = env.storage().instance().get(&DataKey::ClPool(i)).unwrap();
             if entry.pool == pool {
                 if i != count - 1 {
                     let last: ClPoolInfo = env
@@ -214,7 +201,9 @@ impl DexAggregator {
                     env.storage().instance().set(&DataKey::ClPool(i), &last);
                 }
                 env.storage().instance().remove(&DataKey::ClPool(count - 1));
-                env.storage().instance().set(&DataKey::ClPoolCount, &(count - 1));
+                env.storage()
+                    .instance()
+                    .set(&DataKey::ClPoolCount, &(count - 1));
                 return;
             }
         }
@@ -391,7 +380,12 @@ impl DexAggregator {
                         best_hops = new_hops;
                     }
                 } else if depth + 1 < max_hops
-                    && !Self::is_visited_and_worse(&mut visited, &next_token, depth + 1, step.amount_out)
+                    && !Self::is_visited_and_worse(
+                        &mut visited,
+                        &next_token,
+                        depth + 1,
+                        step.amount_out,
+                    )
                 {
                     frontier_token.push_back(next_token);
                     frontier_amount.push_back(step.amount_out);
@@ -485,7 +479,11 @@ impl DexAggregator {
             }
         }
 
-        let cl_count: u32 = env.storage().instance().get(&DataKey::ClPoolCount).unwrap_or(0);
+        let cl_count: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::ClPoolCount)
+            .unwrap_or(0);
         for i in 0..cl_count {
             let info: ClPoolInfo = env.storage().instance().get(&DataKey::ClPool(i)).unwrap();
             if !(Self::is_cl_pool_match(&info, token_in, token_out)) {
@@ -573,7 +571,11 @@ impl DexAggregator {
         Self::push_unique(&mut tokens, token_in.clone());
         Self::push_unique(&mut tokens, token_out.clone());
 
-        let cl_count: u32 = env.storage().instance().get(&DataKey::ClPoolCount).unwrap_or(0);
+        let cl_count: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::ClPoolCount)
+            .unwrap_or(0);
         for i in 0..cl_count {
             let info: ClPoolInfo = env.storage().instance().get(&DataKey::ClPool(i)).unwrap();
             Self::push_unique(&mut tokens, info.token_a.clone());
@@ -650,19 +652,54 @@ mod tests {
         visited.push_back((token_a.clone(), 1, 100));
 
         // Same (token, depth) pair with worse or equal amount is blocked.
-        assert!(DexAggregator::is_visited_and_worse(&mut visited, &token_a, 1, 100));
-        assert!(DexAggregator::is_visited_and_worse(&mut visited, &token_a, 1, 50));
+        assert!(DexAggregator::is_visited_and_worse(
+            &mut visited,
+            &token_a,
+            1,
+            100
+        ));
+        assert!(DexAggregator::is_visited_and_worse(
+            &mut visited,
+            &token_a,
+            1,
+            50
+        ));
         // Same (token, depth) pair with strictly better amount is allowed.
-        assert!(!DexAggregator::is_visited_and_worse(&mut visited, &token_a, 1, 150));
-        
+        assert!(!DexAggregator::is_visited_and_worse(
+            &mut visited,
+            &token_a,
+            1,
+            150
+        ));
+
         // After being allowed, the new best amount is recorded (150).
-        assert!(DexAggregator::is_visited_and_worse(&mut visited, &token_a, 1, 150));
-        assert!(DexAggregator::is_visited_and_worse(&mut visited, &token_a, 1, 140));
+        assert!(DexAggregator::is_visited_and_worse(
+            &mut visited,
+            &token_a,
+            1,
+            150
+        ));
+        assert!(DexAggregator::is_visited_and_worse(
+            &mut visited,
+            &token_a,
+            1,
+            140
+        ));
 
         // Same token at a different depth must still be explorable.
-        assert!(!DexAggregator::is_visited_and_worse(&mut visited, &token_a, 2, 50));
+        assert!(!DexAggregator::is_visited_and_worse(
+            &mut visited,
+            &token_a,
+            2,
+            50
+        ));
         // A different token at the same depth is independent.
-        assert!(!DexAggregator::is_visited_and_worse(&mut visited, &token_b, 1, 50));
+        assert!(!DexAggregator::is_visited_and_worse(
+            &mut visited,
+            &token_b,
+            1,
+            50
+        ));
     }
 
     #[test]
@@ -685,7 +722,7 @@ mod tests {
         let token_a = Address::generate(&env);
         let token_b = Address::generate(&env);
         let cl_pool = Address::generate(&env);
-        
+
         env.mock_all_auths();
         agg.register_cl_pool(&cl_pool, &token_a, &token_b, &30_i128);
 

@@ -428,10 +428,7 @@ impl LpToken {
             "unlock exceeds locker's entry for this holder"
         );
         let locked = Self::locked_balance(env.clone(), holder.clone());
-        assert!(
-            locked >= amount,
-            "unlock exceeds total locked balance"
-        );
+        assert!(locked >= amount, "unlock exceeds total locked balance");
 
         env.storage()
             .persistent()
@@ -455,19 +452,20 @@ impl LpToken {
     /// (post-migration) is asserted to remain within `Locked(holder)`, so admin can
     /// safely split the legacy balance across the historical lockers that originally
     /// contributed without ever over-allocating.
-    pub fn migrate_legacy_lock(
-        env: Env,
-        holder: Address,
-        locker: Address,
-        amount: i128,
-    ) {
+    pub fn migrate_legacy_lock(env: Env, holder: Address, locker: Address, amount: i128) {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
         assert!(amount > 0, "amount must be positive");
 
-        let total_locked: i128 =
-            env.storage().persistent().get(&DataKey::Locked(holder.clone())).unwrap_or(0);
-        assert!(amount <= total_locked, "migrate amount exceeds total locked");
+        let total_locked: i128 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Locked(holder.clone()))
+            .unwrap_or(0);
+        assert!(
+            amount <= total_locked,
+            "migrate amount exceeds total locked"
+        );
 
         let entry_key = DataKey::LockEntry(holder.clone(), locker.clone());
         let existing: i128 = env.storage().persistent().get(&entry_key).unwrap_or(0);
@@ -479,7 +477,9 @@ impl LpToken {
             "migration would exceed total locked across all lockers"
         );
 
-        env.storage().persistent().set(&entry_key, &(existing + amount));
+        env.storage()
+            .persistent()
+            .set(&entry_key, &(existing + amount));
         if existing == 0 {
             Self::add_lock_holder(&env, &holder, &locker);
         }
@@ -1266,11 +1266,7 @@ mod tests {
 
     /// Simulate a legacy `Locked(holder) -> i128` write without seeding any
     /// per-locker `LockEntry`. This mimics state from before issue #556.
-    fn env_persist_lock_unlocked_total(
-        ts: &TestSetup,
-        holder: &Address,
-        amount: i128,
-    ) {
+    fn env_persist_lock_unlocked_total(ts: &TestSetup, holder: &Address, amount: i128) {
         ts.env.as_contract(&ts.contract_addr, || {
             ts.env
                 .storage()

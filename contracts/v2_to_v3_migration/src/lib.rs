@@ -212,17 +212,9 @@ impl MigrationContract {
 
         provider.require_auth();
 
-        let v2_pool: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::V2Pool)
-            .unwrap();
+        let v2_pool: Address = env.storage().instance().get(&DataKey::V2Pool).unwrap();
 
-        let v3_pool: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::V3Pool)
-            .unwrap();
+        let v3_pool: Address = env.storage().instance().get(&DataKey::V3Pool).unwrap();
 
         // ── Step 0: verify V2 and V3 pools trade the same pair ──────────────
         let v2_client = V2PoolClient::new(&env, &v2_pool);
@@ -245,13 +237,8 @@ impl MigrationContract {
             v2_client.remove_liquidity(&provider, &v2_shares, &min_a, &min_b, &deadline);
 
         // ── Step 2: compute optimal V3 tick range ────────────────────────────
-        let (final_tick_lower, final_tick_upper) = Self::compute_range(
-            &env,
-            &v3_client,
-            tick_lower,
-            tick_upper,
-            range_width_ticks,
-        )?;
+        let (final_tick_lower, final_tick_upper) =
+            Self::compute_range(&env, &v3_client, tick_lower, tick_upper, range_width_ticks)?;
 
         // ── Step 3: deposit into V3 with fee discount for migrating LPs ─────
         // Provider transfers tokens to this contract so we can forward them.
@@ -274,19 +261,9 @@ impl MigrationContract {
         // in the very next call (add_liquidity_range) within the same transaction.
         let approve_expiry = env.ledger().sequence() + 100;
 
-        ta_client.approve(
-            &contract_addr,
-            &v3_pool,
-            &received_a,
-            &approve_expiry,
-        );
+        ta_client.approve(&contract_addr, &v3_pool, &received_a, &approve_expiry);
 
-        tb_client.approve(
-            &contract_addr,
-            &v3_pool,
-            &received_b,
-            &approve_expiry,
-        );
+        tb_client.approve(&contract_addr, &v3_pool, &received_b, &approve_expiry);
 
         let position_id = v3_client.add_liquidity_range(
             &contract_addr,
@@ -305,19 +282,9 @@ impl MigrationContract {
         // current ledger sequence which is always valid.
         let revoke_expiry = env.ledger().sequence();
 
-        ta_client.approve(
-            &contract_addr,
-            &v3_pool,
-            &0,
-            &revoke_expiry,
-        );
+        ta_client.approve(&contract_addr, &v3_pool, &0, &revoke_expiry);
 
-        tb_client.approve(
-            &contract_addr,
-            &v3_pool,
-            &0,
-            &revoke_expiry,
-        );
+        tb_client.approve(&contract_addr, &v3_pool, &0, &revoke_expiry);
 
         // ── Step 4: refund leftover dust to provider ──────────────────────────
         // Computed as the call-scoped delta, not the contract's absolute
@@ -376,21 +343,11 @@ impl MigrationContract {
             return Err(MigrationError::NotInitialized);
         }
 
-        let v3_pool: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::V3Pool)
-            .unwrap();
+        let v3_pool: Address = env.storage().instance().get(&DataKey::V3Pool).unwrap();
 
         let v3_client = V3PoolClient::new(&env, &v3_pool);
 
-        Self::compute_range(
-            &env,
-            &v3_client,
-            tick_lower,
-            tick_upper,
-            range_width_ticks,
-        )
+        Self::compute_range(&env, &v3_client, tick_lower, tick_upper, range_width_ticks)
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────
@@ -485,8 +442,7 @@ mod tests {
 
         let contract_addr = env.register_contract(None, MigrationContract);
 
-        MigrationContractClient::new(&env, &contract_addr)
-            .initialize(&admin, &v2_pool, &v3_pool);
+        MigrationContractClient::new(&env, &contract_addr).initialize(&admin, &v2_pool, &v3_pool);
 
         (env, contract_addr)
     }
@@ -548,10 +504,7 @@ mod tests {
 
         let result = client.try_preview_range(&500, &i32::MAX, &0);
 
-        assert_eq!(
-            result,
-            Err(Ok(MigrationError::InvalidRange))
-        );
+        assert_eq!(result, Err(Ok(MigrationError::InvalidRange)));
     }
 
     #[test]
@@ -565,10 +518,7 @@ mod tests {
         // deposited into an inverted/degenerate range.
         let result = client.try_preview_range(&2_000, &i32::MAX, &50);
 
-        assert_eq!(
-            result,
-            Err(Ok(MigrationError::InvalidRange))
-        );
+        assert_eq!(result, Err(Ok(MigrationError::InvalidRange)));
     }
 
     #[test]
@@ -579,9 +529,6 @@ mod tests {
 
         let result = client.try_preview_range(&200, &100, &0);
 
-        assert_eq!(
-            result,
-            Err(Ok(MigrationError::InvalidRange))
-        );
+        assert_eq!(result, Err(Ok(MigrationError::InvalidRange)));
     }
 }
