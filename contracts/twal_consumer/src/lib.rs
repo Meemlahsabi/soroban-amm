@@ -256,12 +256,7 @@ impl TwalConsumer {
     }
 
     fn first_tracked_index(tracked: &Vec<TrackedPool>, pool: &Address) -> Option<u32> {
-        for i in 0..tracked.len() {
-            if tracked.get(i).unwrap().address == *pool {
-                return Some(i);
-            }
-        }
-        None
+        (0..tracked.len()).find(|&i| tracked.get(i).unwrap().address == *pool)
     }
 
     /// Shared implementation behind both the explicit `add_tracked_pool` and

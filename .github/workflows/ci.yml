@@ -21,30 +21,50 @@ jobs:
           components: clippy, rustfmt
       - name: Add wasm target
         run: rustup target add wasm32v1-none
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+      # `router`, `dex-aggregator`, `batch_router`, and `batch_auction` each
+      # depend on more than one other contract crate (e.g. `amm` + `factory`,
+      # or `amm` + `concentrated_liquidity`) as a Rust library. Every
+      # #[contractimpl] fn in a dependency is exported as a wasm symbol, so
+      # linking two such crates' functions into one wasm module collides on
+      # every shared entry-point name (e.g. `accept_admin`, `is_paused`) —
+      # this is a genuine `rust-lld` duplicate-symbol link error, not a
+      # missing/misconfigured build step. It affects only the final wasm
+      # *link*: all four crates still build, lint, and test normally for the
+      # host target below. Fixing it needs a structural change (dependency
+      # crates split into a shared non-contract lib + thin contract shim) and
+      # is tracked separately; excluding them here from the wasm/size step
+      # only is the documented, deliberate workaround.
+      # `amm-fuzz`, `integration-tests`, and `benches` are not deployable
+      # contracts, so they never produce wasm to build or size-check here.
       - name: Build WASM artifacts
-        run: cargo build --release --target wasm32v1-none --workspace --exclude amm-fuzz --exclude integration-tests --exclude benches --exclude cl_position_nft --exclude router --exclude dex-aggregator --exclude batch_router --exclude batch_auction
+        run: cargo build --release --target wasm32v1-none --workspace --exclude amm-fuzz --exclude integration-tests --exclude benches --exclude router --exclude dex-aggregator --exclude batch_router --exclude batch_auction
       - name: Check WASM binary sizes
-        run: |
-          for f in target/wasm32v1-none/release/*.wasm; do
-            size=$(wc -c < "$f")
-            echo "$f: ${size} bytes"
-            if [ "$size" -gt 204800 ]; then
-              echo "FAIL: $f exceeds 200 KB limit"
-              exit 1
-            fi
-          done
+        run: bash scripts/size_report.sh --fail-on-limit
+      # `cargo test -p factory` was the only crate CI ever ran, so the tests
+      # below never ran in CI (and, for `oracle-aggregator`, never even
+      # compiled — a duplicate-symbol bug in its own test file, fixed in this
+      # change). Running them for the first time surfaced pre-existing,
+      # unrelated test failures in six crates: `concentrated_liquidity`,
+      # `dex-aggregator`, `incentive-campaigns`, `oracle-aggregator`,
+      # `token`, and `v2-to-v3-migration`. Each was confirmed to fail the
+      # same way with none of this change's edits applied, so they are
+      # excluded here (not silently — see the issue this lands with) until
+      # they are root-caused and fixed as follow-up work. Every other crate
+      # in the workspace now runs on every PR.
       - name: Run all tests
-        run: cargo test -p factory
+        run: cargo test --workspace --exclude amm-fuzz --exclude concentrated_liquidity --exclude dex-aggregator --exclude incentive-campaigns --exclude oracle-aggregator --exclude token --exclude v2-to-v3-migration
       - name: Run upgrade integration tests
         run: cargo test -p integration-tests upgrade
       - name: Run hot-path benchmarks
         run: cargo run -p benches -- --check
       - name: Clippy
-        run: cargo clippy -p factory --no-deps -- -D warnings
+        run: cargo clippy --workspace --all-targets --exclude amm-fuzz -- -D warnings
       - name: Format check
-        run: cargo fmt -p factory -- --check
+        run: cargo fmt --all -- --check
       - name: Check docs
-        run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps -p factory
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --workspace --exclude amm-fuzz
       - name: Check error docs sync
         run: make check-docs
 

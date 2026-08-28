@@ -135,11 +135,11 @@ pub enum DataKey {
     LpRebateBps,
 
     // Issue #293: k-of-n multisig guard for emergency operations.
-    /// Vec<Address> of multisig signers.
+    /// `Vec<Address>` of multisig signers.
     MultisigSigners,
     /// Required quorum (k in k-of-n).
     MultisigQuorum,
-    /// Pending emergency-withdraw proposal: (recipient, Vec<Address> approvals).
+    /// Pending emergency-withdraw proposal: (recipient, `Vec<Address>` approvals).
     MultisigProposalRecipient,
     MultisigProposalApprovals,
     /// Expiration timestamp for the pending multisig proposal.
@@ -570,9 +570,7 @@ impl AmmPool {
         // minimum-liquidity lock correctly. (Fixes #569)
         env.storage().instance().set(&DataKey::ReserveA, &0_i128);
         env.storage().instance().set(&DataKey::ReserveB, &0_i128);
-        env.storage()
-            .instance()
-            .set(&DataKey::TotalShares, &0_i128);
+        env.storage().instance().set(&DataKey::TotalShares, &0_i128);
         env.storage()
             .instance()
             .set(&DataKey::MinLiquidityLocked, &false);
@@ -601,7 +599,7 @@ impl AmmPool {
         Self::lock_held(&env)
     }
 
-    /// Deprecated alias for [`Self::is_locked`], kept for ABI compatibility.
+    /// Deprecated alias for `is_locked`, kept for ABI compatibility.
     /// The name described only the flash-loan holder of the lock; every
     /// fund-moving entry point now holds it while executing.
     pub fn flash_loan_locked(env: Env) -> bool {
@@ -1181,9 +1179,7 @@ impl AmmPool {
         // proportional-shares formula, permanently bricking deposits.
         // Resetting MinLiquidityLocked allows the first re-deposit to
         // re-establish the minimum-liquidity lock correctly. (Fixes #569)
-        env.storage()
-            .instance()
-            .set(&DataKey::TotalShares, &0_i128);
+        env.storage().instance().set(&DataKey::TotalShares, &0_i128);
         env.storage()
             .instance()
             .set(&DataKey::MinLiquidityLocked, &false);
@@ -2658,7 +2654,7 @@ impl AmmPool {
 
     /// Swap with fee-on-transfer (FOT) token support.
     ///
-    /// Identical to [`swap`] but measures the actual amount of `token_in`
+    /// Identical to `swap` but measures the actual amount of `token_in`
     /// received by the pool via a pre/post balance snapshot instead of trusting
     /// `amount_in`. This handles tokens that silently deduct a transfer fee, so
     /// the constant-product calculation always uses the true net amount.
@@ -2838,7 +2834,7 @@ impl AmmPool {
 
     /// Add liquidity with fee-on-transfer (FOT) token support.
     ///
-    /// Like [`add_liquidity`] but measures the actual token amounts received
+    /// Like `add_liquidity` but measures the actual token amounts received
     /// by the pool via pre/post balance snapshots rather than trusting the
     /// nominal `amount_a`/`amount_b` values. LP shares are minted proportional
     /// to what the pool actually received.

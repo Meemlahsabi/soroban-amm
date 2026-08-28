@@ -447,7 +447,7 @@ impl ClPositionNft {
         Ok(meta)
     }
 
-    /// Returns up to [`MAX_PAGE`](Self::MAX_PAGE) token ids owned by `owner`,
+    /// Returns up to `MAX_PAGE` token ids owned by `owner`,
     /// starting at `offset`. `O(limit)`, never `O(holdings)` — an owner with
     /// more than `MAX_PAGE` positions must page through all of them with
     /// repeated calls (`offset += MAX_PAGE` each time). Reads only the O(1)
@@ -485,10 +485,10 @@ impl ClPositionNft {
         token_id
     }
 
-    /// Returns up to [`MAX_PAGE`](Self::MAX_PAGE) token ids owned by `owner`
+    /// Returns up to `MAX_PAGE` token ids owned by `owner`
     /// (empty vec if none). Kept on the ABI for compatibility; an owner
     /// holding more than `MAX_PAGE` positions must use
-    /// [`tokens_of_paginated`](Self::tokens_of_paginated) to see the rest —
+    /// `tokens_of_paginated` to see the rest —
     /// an unbounded `tokens_of` would reintroduce the exact DoS this issue
     /// closes.
     pub fn tokens_of(env: Env, owner: Address) -> Vec<u64> {
@@ -500,14 +500,14 @@ impl ClPositionNft {
     /// conventional ERC-721 `balanceOf` signature. `O(1)` unconditionally —
     /// reads `OwnerTokenCount` directly rather than loading any list. Does
     /// not include a not-yet-migrated owner's legacy holdings; see
-    /// [`is_migrated`](Self::is_migrated).
+    /// `is_migrated`.
     pub fn balance_of(env: Env, owner: Address) -> u64 {
         Self::owner_token_count(&env, &owner)
     }
 
     /// Returns whether `owner` has no remaining pre-#697 legacy holdings —
     /// i.e. every position they held before this upgrade has been moved into
-    /// the O(1) index by [`migrate_ownership_index`](Self::migrate_ownership_index),
+    /// the O(1) index by `migrate_ownership_index`,
     /// or they never had any. `true` for every owner on a fresh deployment.
     pub fn is_migrated(env: Env, owner: Address) -> bool {
         match env
@@ -1079,7 +1079,7 @@ mod tests {
         let id = client.mint(&user_a, &pool, &-100, &100);
 
         client.set_approval_for_all(&user_a, &operator, &true);
-        assert_eq!(client.is_approved_for_all(&user_a, &operator), true);
+        assert!(client.is_approved_for_all(&user_a, &operator));
 
         client.transfer(&operator, &user_a, &user_b, &id);
 
@@ -1243,7 +1243,7 @@ mod tests {
 
         let mut ids = std::vec::Vec::new();
         for i in 0..500 {
-            ids.push(client.mint(&victim, &pool, &(i as i32), &(i as i32 + 1)));
+            ids.push(client.mint(&victim, &pool, &{ i }, &(i + 1)));
         }
         assert_eq!(client.balance_of(&victim), 500);
 
@@ -1408,7 +1408,7 @@ mod tests {
         let (_env, client, _admin, pool, user) = setup();
         let mut minted: std::collections::BTreeSet<u64> = std::collections::BTreeSet::new();
         for i in 0..10 {
-            minted.insert(client.mint(&user, &pool, &(i as i32), &(i as i32 + 1)));
+            minted.insert(client.mint(&user, &pool, &{ i }, &(i + 1)));
         }
 
         let count = client.balance_of(&user);

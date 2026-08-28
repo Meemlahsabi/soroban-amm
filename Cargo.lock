@@ -126,6 +126,7 @@ version = "0.1.0"
 dependencies = [
  "amm",
  "factory",
+ "soroban-amm-sdk",
  "soroban-sdk",
  "token",
 ]

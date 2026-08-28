@@ -55,8 +55,8 @@ pub enum ClError {
     InvalidToken = 16,       // token_in is not token_a or token_b
     RangeOrderInRange = 17,  // range order must be fully out-of-range at creation
     OracleDeviationExceeded = 18,
-    NftNotConfigured = 19,        // no position-NFT contract is wired into the pool
-    NotNftOwner = 20,              // caller does not currently own the position NFT
+    NftNotConfigured = 19, // no position-NFT contract is wired into the pool
+    NotNftOwner = 20,      // caller does not currently own the position NFT
     NftContractChangeBlocked = 21, // changing NFT contract while positions are tokenized would orphan indices
     RangeOrderExists = 22, // a range order is already active on this range — withdraw it before placing a new one
     /// #696: `swap_exact_out` (or `quote_exact_out`) could not fill the
@@ -333,8 +333,8 @@ impl ConcentratedLiquidity {
     /// Once set, opening a fresh position mints a receipt NFT to the provider
     /// and records a `token_id ↔ position` index. The NFT may then be
     /// transferred; its current owner — not the original provider — controls
-    /// the position through [`burn_position_by_token_id`](Self::burn_position_by_token_id)
-    /// and [`collect_fees_by_token_id`](Self::collect_fees_by_token_id).
+    /// the position through `burn_position_by_token_id`
+    /// and `collect_fees_by_token_id`.
     ///
     /// The NFT contract must be initialized with this pool's address as its
     /// `cl_pool`, otherwise mint/burn calls from the pool will be rejected.
@@ -1159,7 +1159,7 @@ impl ConcentratedLiquidity {
     /// Quote the expected result of a single-token deposit without executing it.
     ///
     /// Pure read — does not transfer tokens or modify state.
-    /// Returns values matching what [`mint_position_single_token`] would produce.
+    /// Returns values matching what `mint_position_single_token` would produce.
     pub fn quote_single_token_deposit(
         env: Env,
         lower_tick: i32,
@@ -1249,21 +1249,21 @@ impl ConcentratedLiquidity {
     ///   `token_b`.  When price falls through the range the position converts
     ///   to `token_a`.
     ///
-    /// The position is tagged internally so [`check_range_order_filled`] can
+    /// The position is tagged internally so `check_range_order_filled` can
     /// report its status without requiring an off-chain keeper.
     ///
     /// Only one range order may be active per `(provider, lower_tick,
     /// upper_tick)`: re-placing while an earlier order's liquidity is still in
     /// the position is rejected with [`ClError::RangeOrderExists`]. The tag is
     /// released when the position is fully withdrawn (see
-    /// [`burn_position_core`](Self::burn_position_core)), so the same range can
+    /// `burn_position_core`), so the same range can
     /// be reused for a fresh order afterwards.
     ///
     /// # Errors
     /// - [`ClError::RangeOrderInRange`] – the range straddles the current tick.
     /// - [`ClError::RangeOrderExists`] – a previous order on this range has not
     ///   been withdrawn yet.
-    /// - All the usual [`ClError`] variants from [`mint_position_single_token`].
+    /// - All the usual `ClError` variants from `mint_position_single_token`.
     #[allow(clippy::too_many_arguments)]
     pub fn place_range_order(
         env: Env,
@@ -1295,10 +1295,11 @@ impl ConcentratedLiquidity {
         // (issue #595). The provider must withdraw (burn) the old order first.
         let range_order_key = DataKey::RangeOrder(provider.clone(), lower_tick, upper_tick);
         if env.storage().instance().has(&range_order_key) {
-            let pos: Option<Position> = env
-                .storage()
-                .persistent()
-                .get(&DataKey::Position(provider.clone(), lower_tick, upper_tick));
+            let pos: Option<Position> = env.storage().persistent().get(&DataKey::Position(
+                provider.clone(),
+                lower_tick,
+                upper_tick,
+            ));
             if pos.map(|p| p.liquidity > 0).unwrap_or(false) {
                 return Err(ClError::RangeOrderExists);
             }
@@ -1345,7 +1346,7 @@ impl ConcentratedLiquidity {
     ///   `current_tick < lower_tick`.
     ///
     /// Returns [`ClError::PositionNotFound`] if the position does not exist or
-    /// was not placed via [`place_range_order`].
+    /// was not placed via `place_range_order`.
     pub fn check_range_order_filled(
         env: Env,
         provider: Address,
@@ -1396,7 +1397,7 @@ impl ConcentratedLiquidity {
     /// Backwards-compatible entry point. When the position has been tokenized
     /// (issue #348) and `provider` no longer owns the NFT, the call is rejected
     /// with [`ClError::NotNftOwner`]: the current NFT owner must use
-    /// [`burn_position_by_token_id`](Self::burn_position_by_token_id) instead.
+    /// `burn_position_by_token_id` instead.
     pub fn burn_position(
         env: Env,
         provider: Address,
@@ -1451,7 +1452,7 @@ impl ConcentratedLiquidity {
 
     /// Collect accrued fees from a position keyed by the original `provider`.
     ///
-    /// Like [`burn_position`](Self::burn_position), this defers to the current
+    /// Like `burn_position`, this defers to the current
     /// NFT owner once a position is tokenized.
     pub fn collect_fees(
         env: Env,
@@ -3088,8 +3089,8 @@ impl ConcentratedLiquidity {
             .instance()
             .get(&DataKey::OracleTimestamps)
             .unwrap_or_else(|| Vec::new(env));
-        let append = timestamps.is_empty()
-            || timestamps.get(timestamps.len() - 1).unwrap_or(0) < timestamp;
+        let append =
+            timestamps.is_empty() || timestamps.get(timestamps.len() - 1).unwrap_or(0) < timestamp;
         if append {
             timestamps.push_back(timestamp);
             env.storage()
@@ -3107,11 +3108,7 @@ impl ConcentratedLiquidity {
         {
             return cum;
         }
-        let timestamps: Vec<u64> = match env
-            .storage()
-            .instance()
-            .get(&DataKey::OracleTimestamps)
-        {
+        let timestamps: Vec<u64> = match env.storage().instance().get(&DataKey::OracleTimestamps) {
             Some(ts) => ts,
             None => {
                 return env
@@ -3353,8 +3350,10 @@ impl ConcentratedLiquidity {
             let sqrt_lower = Self::tick_to_sqrt_price_x96(lt);
             let sqrt_upper = Self::tick_to_sqrt_price_x96(ut);
             let sqrt_current = Self::tick_to_sqrt_price_x96(ct);
-            let liquidity_from_amount0 = math::get_liquidity_for_amount0(sqrt_current, sqrt_upper, a);
-            let liquidity_from_amount1 = math::get_liquidity_for_amount1(sqrt_lower, sqrt_current, b);
+            let liquidity_from_amount0 =
+                math::get_liquidity_for_amount0(sqrt_current, sqrt_upper, a);
+            let liquidity_from_amount1 =
+                math::get_liquidity_for_amount1(sqrt_lower, sqrt_current, b);
             liquidity_from_amount0.min(liquidity_from_amount1).max(1)
         }
     }
@@ -4555,20 +4554,6 @@ mod test_new_features {
     use soroban_sdk::token::StellarAssetClient;
     use soroban_sdk::Env;
 
-    fn setup(env: &Env) -> (Address, Address, Address, ConcentratedLiquidityClient) {
-        let admin = Address::generate(env);
-        let token_a = env
-            .register_stellar_asset_contract_v2(admin.clone())
-            .address();
-        let token_b = env
-            .register_stellar_asset_contract_v2(admin.clone())
-            .address();
-        let cl_addr = env.register_contract(None, ConcentratedLiquidity);
-        let client = ConcentratedLiquidityClient::new(env, &cl_addr);
-        client.initialize(&admin, &token_a, &token_b, &30_i128, &0_i32, &1_i32);
-        (admin, token_a, token_b, client)
-    }
-
     // ── Issue #183: TWAP tick accumulator ────────────────────────────────────
 
     #[test]
@@ -4936,7 +4921,7 @@ mod test_tick_spacing {
     fn setup_cl(
         env: &Env,
         tick_spacing: i32,
-    ) -> (Address, Address, Address, ConcentratedLiquidityClient) {
+    ) -> (Address, Address, Address, ConcentratedLiquidityClient<'_>) {
         env.mock_all_auths();
         let admin = Address::generate(env);
         env.budget().reset_unlimited();
@@ -5074,7 +5059,7 @@ mod test_new_tick_features {
     use soroban_sdk::token::StellarAssetClient;
     use soroban_sdk::Env;
 
-    fn setup_pool(env: &Env) -> (Address, Address, Address, ConcentratedLiquidityClient) {
+    fn setup_pool(env: &Env) -> (Address, Address, Address, ConcentratedLiquidityClient<'_>) {
         env.mock_all_auths();
         let admin = Address::generate(env);
         env.budget().reset_unlimited();
@@ -5574,7 +5559,7 @@ mod test_single_token_deposit {
     fn setup_pool(
         env: &Env,
         initial_tick: i32,
-    ) -> (Address, Address, Address, ConcentratedLiquidityClient) {
+    ) -> (Address, Address, Address, ConcentratedLiquidityClient<'_>) {
         env.mock_all_auths();
         let admin = Address::generate(env);
         env.budget().reset_unlimited();
@@ -7841,7 +7826,7 @@ mod test_range_order_fill_status {
     fn setup_pool(
         env: &Env,
         initial_tick: i32,
-    ) -> (Address, Address, Address, ConcentratedLiquidityClient) {
+    ) -> (Address, Address, Address, ConcentratedLiquidityClient<'_>) {
         env.mock_all_auths();
         let admin = Address::generate(env);
         env.budget().reset_unlimited();

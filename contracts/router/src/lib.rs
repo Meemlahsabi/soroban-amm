@@ -197,15 +197,12 @@ impl Router {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use amm::AmmPool;
     use factory::{Factory, FactoryClient};
-    use soroban_sdk::token::{StellarAssetClient, TokenClient};
-    use soroban_sdk::String;
+    use soroban_sdk::token::StellarAssetClient;
     use soroban_sdk::{
         testutils::{Address as _, Ledger},
         Env,
     };
-    use token::{LpToken, LpTokenClient};
 
     fn setup_env_and_router() -> (Env, Address, Address, Address, Address, Address, Address) {
         let env = Env::default();
@@ -306,13 +303,11 @@ mod tests {
     #[test]
     #[should_panic(expected = "contract call failed")]
     fn test_atomic_revert_behavior() {
-        let (env, router_addr, trader, token1, token2, token3, pool1_addr) = setup_env_and_router();
+        let (env, router_addr, trader, token1, token2, token3, _pool1_addr) =
+            setup_env_and_router();
 
         let router = RouterClient::new(&env, &router_addr);
         let path = soroban_sdk::vec![&env, token1.clone(), token2.clone(), token3.clone()];
-
-        let pool1_token1_bal_before =
-            soroban_sdk::token::TokenClient::new(&env, &token1).balance(&pool1_addr);
 
         // This will panic, the state should be reverted
         router.swap_exact_in(&trader, &path, &10_000, &1_000_000, &u64::MAX);

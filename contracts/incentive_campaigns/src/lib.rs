@@ -173,7 +173,6 @@ fn advance_accumulator(mut campaign: Campaign, up_to_time: u64, total_supply: i1
     campaign
 }
 
-
 // ---------------------------------------------------------------------------
 // Contract
 // ---------------------------------------------------------------------------
@@ -464,10 +463,10 @@ impl IncentiveCampaigns {
         assert!(total_supply > 0, "no LP supply");
 
         // ── Step 2: advance campaign accumulator to current time ─────────────────
-        
+
         // Update campaign accumulator based on time elapsed and total LP supply
         campaign = advance_accumulator(campaign, claim_time, total_supply);
-        
+
         let snapshot_key = DataKey::ProviderSnapshot(campaign_id, provider.clone());
         let snapshot: Option<ProviderSnapshot> = if env.storage().persistent().has(&snapshot_key) {
             extend_persistent_ttl(&env, &snapshot_key);
@@ -728,7 +727,6 @@ impl IncentiveCampaigns {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -869,7 +867,14 @@ mod tests {
 
         // Campaign: t=1_000..11_000, rate=100 tokens/s.
         let id = client.create_campaign(
-            &gov, &amm_addr, &lp_addr, &reward.address(), &1_000, &11_000, &100, &1_000_000,
+            &gov,
+            &amm_addr,
+            &lp_addr,
+            &reward.address(),
+            &1_000,
+            &11_000,
+            &100,
+            &1_000_000,
         );
 
         // ── Honest provider establishes snapshot at t=1_000 ──────────────────────
@@ -916,7 +921,10 @@ mod tests {
         );
 
         // The late joiner must earn strictly more than zero (they held for 5_000 s).
-        assert!(late_claimed > 0, "late joiner should earn something for t=6_000..11_000");
+        assert!(
+            late_claimed > 0,
+            "late joiner should earn something for t=6_000..11_000"
+        );
 
         // Key invariant: the late joiner must earn LESS than they would have if they
         // had held the full campaign (honest provider held twice as long and with a
@@ -1237,10 +1245,7 @@ mod tests {
 
         // After create: Campaign, index, and accrual keys must be bumped.
         env.as_contract(&incentives, || {
-            let campaign_ttl = env
-                .storage()
-                .persistent()
-                .get_ttl(&DataKey::Campaign(id));
+            let campaign_ttl = env.storage().persistent().get_ttl(&DataKey::Campaign(id));
             let index_ttl = env
                 .storage()
                 .persistent()
@@ -1280,10 +1285,10 @@ mod tests {
         assert!(paid > 0);
 
         env.as_contract(&incentives, || {
-            let snapshot_ttl = env.storage().persistent().get_ttl(&DataKey::ProviderSnapshot(
-                id,
-                provider.clone(),
-            ));
+            let snapshot_ttl = env
+                .storage()
+                .persistent()
+                .get_ttl(&DataKey::ProviderSnapshot(id, provider.clone()));
             let dist_ttl = env
                 .storage()
                 .persistent()
@@ -1304,10 +1309,7 @@ mod tests {
         let _ = client.get_active_campaigns();
 
         env.as_contract(&incentives, || {
-            let campaign_ttl = env
-                .storage()
-                .persistent()
-                .get_ttl(&DataKey::Campaign(id));
+            let campaign_ttl = env.storage().persistent().get_ttl(&DataKey::Campaign(id));
             assert!(
                 campaign_ttl >= BUMP_TO - 1,
                 "get_campaign must refresh Campaign TTL, got {campaign_ttl}"

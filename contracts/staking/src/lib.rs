@@ -401,7 +401,10 @@ impl Staking {
     pub fn stake_locked(env: Env, staker: Address, amount: i128, lock_duration_secs: u64) {
         assert!(!Self::is_paused(env.clone()), "contract is paused");
         staker.require_auth();
-        assert!(amount > 0 || lock_duration_secs > 0, "nothing to do: amount or lock duration required");
+        assert!(
+            amount > 0 || lock_duration_secs > 0,
+            "nothing to do: amount or lock duration required"
+        );
 
         if amount > 0 {
             let lp_token: Address = env.storage().instance().get(&DataKey::LpToken).unwrap();
@@ -601,7 +604,7 @@ impl Staking {
 
     /// Enable or disable emergency mode (#359). Admin only.
     ///
-    /// Emergency mode unlocks [`Self::emergency_withdraw`] so stakers can
+    /// Emergency mode unlocks `emergency_withdraw` so stakers can
     /// reclaim their LP tokens without touching the reward token. It is gated
     /// behind the admin so it cannot be used to skip rewards under normal
     /// conditions.
@@ -651,7 +654,7 @@ impl Staking {
     /// Reclaim staked LP tokens without claiming rewards (#359).
     ///
     /// Only callable while the admin has enabled emergency mode. Unlike
-    /// [`Self::unstake`], this never interacts with the reward token, so
+    /// `unstake`, this never interacts with the reward token, so
     /// stakers can always recover their LP even if the reward token is paused,
     /// blacklisted, or the reward pool has been drained by a bug. Any pending
     /// rewards are forfeited, and the lock (if any) is ignored.
@@ -1020,7 +1023,7 @@ mod tests {
         )
     }
 
-    fn setup(env: &Env) -> (Address, Address, StakingClient) {
+    fn setup(env: &Env) -> (Address, Address, StakingClient<'_>) {
         let admin = Address::generate(env);
         let staking_addr = env.register_contract(None, Staking);
         let (lp_token, lp_sac) = create_sac(env, &admin);
@@ -1038,7 +1041,7 @@ mod tests {
     fn test_stake_no_lock_one_x_boost() {
         let env = Env::default();
         env.mock_all_auths();
-        let (admin, staker, staking) = setup(&env);
+        let (_admin, staker, staking) = setup(&env);
 
         staking.stake(&staker, &1_000_i128);
 
@@ -1207,9 +1210,18 @@ mod tests {
         staking.stake_locked(&staker, &0_i128, &MIN_LOCK_DURATION);
 
         let pos_after = staking.get_locked_position(&staker);
-        assert!(pos_after.boost_multiplier > BOOST_SCALE, "boost should be restored");
-        assert!(pos_after.lock_expiry > env.ledger().timestamp(), "lock expiry should be in the future");
-        assert_eq!(pos_after.amount, stake_amount, "staked amount should be unchanged");
+        assert!(
+            pos_after.boost_multiplier > BOOST_SCALE,
+            "boost should be restored"
+        );
+        assert!(
+            pos_after.lock_expiry > env.ledger().timestamp(),
+            "lock expiry should be in the future"
+        );
+        assert_eq!(
+            pos_after.amount, stake_amount,
+            "staked amount should be unchanged"
+        );
     }
 
     #[test]

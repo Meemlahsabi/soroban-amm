@@ -206,6 +206,13 @@ schema version together when selecting a decoder.
 | `vote_unlocked` | `(proposal_id: u64, locked: i128)` |
 | `vetoed` | `(proposal_id: u64, multisig: Address, now: u64, discussion_end: u64)` |
 
+### BatchRouter — `contracts/batch_router/src/lib.rs`
+
+| Event | Payload |
+|---|---|
+| `batch_op` | `(op_index: u32, kind: Symbol, result: BatchOpResult)` — emitted once per operation, in order, before the batch-level event. |
+| `batch_executed` | `(ops_len: u32)` |
+
 ### Consumer rules
 
 A consumer must inspect the leading `schema_version` before decoding any row in
@@ -213,6 +220,15 @@ this catalogue. It may decode a version it explicitly supports, quarantine a
 newer version, and ignore an unknown topic. A payload shape change requires a
 single global version bump even if the change affects only one event; adding a
 new topic does not require a bump by itself.
+
+## Update (#711)
+
+`contracts/batch_router/src/lib.rs` moved its `batch_executed` event off a
+raw `env.events().publish` call and onto `emit_versioned_event!`, and gained
+a new per-operation `batch_op` event carrying the op's index, kind, and
+result so consumers can attribute effects within a batch without
+re-deriving them from `batch_executed` alone. Both rows are listed in the
+new BatchRouter event table above.
 
 ## Update (#698)
 
