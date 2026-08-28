@@ -16,7 +16,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/e2e/common.sh
 source "$ROOT_DIR/e2e/common.sh"
 
-ALL_FLOWS=(v2 factory)
+ALL_FLOWS=(v2 factory cl governance staking)
 
 ONLY_RAW=""
 SKIP_RAW=""
@@ -73,11 +73,19 @@ fi
 source "$DEPLOY_ENV"
 export TOKEN_A_CONTRACT_ID TOKEN_B_CONTRACT_ID AMM_CONTRACT_ID FACTORY_CONTRACT_ID
 export AMM_WASM_HASH TOKEN_WASM_HASH
+export AMM_POOL_CONTRACT_ID LP_TOKEN_CONTRACT_ID REWARD_TOKEN_CONTRACT_ID
+export CL_POOL_CONTRACT_ID GOVERNANCE_CONTRACT_ID STAKING_CONTRACT_ID
 
 # shellcheck source=scripts/e2e/v2.sh
 source "$ROOT_DIR/e2e/v2.sh"
 # shellcheck source=scripts/e2e/factory.sh
 source "$ROOT_DIR/e2e/factory.sh"
+# shellcheck source=scripts/e2e/cl.sh
+source "$ROOT_DIR/e2e/cl.sh"
+# shellcheck source=scripts/e2e/governance.sh
+source "$ROOT_DIR/e2e/governance.sh"
+# shellcheck source=scripts/e2e/staking.sh
+source "$ROOT_DIR/e2e/staking.sh"
 
 declare -A FLOW_STATUS
 declare -A FLOW_DURATION
@@ -110,6 +118,9 @@ run_flow_isolated() {
 
 run_flow_isolated v2 run_v2_flow
 run_flow_isolated factory run_factory_flow
+run_flow_isolated cl run_cl_flow
+run_flow_isolated governance run_governance_flow
+run_flow_isolated staking run_staking_flow
 
 printf '\n%s\n' "Summary"
 printf '%s\n' "-------"
