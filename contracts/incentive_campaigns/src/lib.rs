@@ -359,7 +359,17 @@ impl IncentiveCampaigns {
             .get(&campaign_key)
             .expect("campaign not found");
         extend_persistent_ttl(&env, &campaign_key);
-        Self::checkpoint_campaign_rewards(&env, campaign_id, &campaign, env.ledger().timestamp());
+
+        // Flush the payout accumulator to now *before* the rate changes, so
+        // seconds already elapsed stay priced at the old rate and only future
+        // seconds use `new_rate`. Without this, `claim_rewards`'s next call to
+        // `advance_accumulator` would apply `new_rate` retroactively across the
+        // whole interval since `last_update_time`.
+        let now = env.ledger().timestamp();
+        let accrual_until = Self::campaign_accrual_time(&campaign, now);
+        let total_supply = LpTokenClient::new(&env, &campaign.lp_token).total_supply();
+        campaign = advance_accumulator(campaign, accrual_until, total_supply);
+
         campaign.reward_rate = new_rate;
         env.storage().persistent().set(&campaign_key, &campaign);
         extend_persistent_ttl(&env, &campaign_key);
@@ -1187,6 +1197,10 @@ mod tests {
             &gov_addr, &pool, &lp, &reward, &1_000, &5_000, &100, &2_000_000,
         );
 
+        // First call initialises the provider's snapshot at campaign start and
+        // returns 0 (nothing accrued yet) — see `claim_rewards` docs.
+        assert_eq!(client.claim_rewards(&provider, &id), 0);
+
         env.ledger().with_mut(|l| l.timestamp = 2_000);
         let first_claim = client.claim_rewards(&provider, &id);
         assert_eq!(first_claim, 99_900);
@@ -1211,6 +1225,10 @@ mod tests {
         let id = client.create_campaign(
             &gov_addr, &pool, &lp, &reward, &1_000, &5_000, &200, &2_000_000,
         );
+
+        // First call initialises the provider's snapshot at campaign start and
+        // returns 0 (nothing accrued yet) — see `claim_rewards` docs.
+        assert_eq!(client.claim_rewards(&provider, &id), 0);
 
         env.ledger().with_mut(|l| l.timestamp = 3_000);
         let first_claim = client.claim_rewards(&provider, &id);

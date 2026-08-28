@@ -8,8 +8,7 @@
 
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, Vec};
 
-use amm::AmmPoolClient;
-use factory::FactoryClient;
+use pool_interfaces::{AmmPoolClient, FactoryClient};
 
 const MIN_TTL: u32 = 172_800;
 const BUMP_TO: u32 = 518_400;
