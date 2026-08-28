@@ -2598,7 +2598,7 @@ mod tests {
                     // advance time (simulates expiries happening in the background)
                     let delta = 1 + (r % (MIN_LOCK_DURATION / 2));
                     env.ledger().with_mut(|l| {
-                        l.timestamp = l.timestamp + delta;
+                        l.timestamp += delta;
                     });
                 }
                 3 => {
