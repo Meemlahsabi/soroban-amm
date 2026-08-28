@@ -307,6 +307,7 @@ impl LpToken {
         env.storage()
             .instance()
             .set(&DataKey::TotalSupply, &(supply - amount));
+        Self::write_checkpoint(&env, &from);
     }
 
     // ── Internal ──────────────────────────────────────────────────────────────
@@ -857,6 +858,12 @@ mod tests {
         for i in 0..LpToken::MAX_CHECKPOINTS {
             ts.env.ledger().set_sequence_number(start + i);
             client.mint(&alice, &1_i128);
+            // The test env's budget accumulates cost across every invocation
+            // made against this `Env`, unlike a real network where each
+            // transaction gets a fresh budget. Reset it after each mint so
+            // this loop of MAX_CHECKPOINTS invocations doesn't spuriously
+            // exceed the resource limit.
+            ts.env.budget().reset_default();
         }
         alice
     }
