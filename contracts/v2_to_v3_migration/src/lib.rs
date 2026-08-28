@@ -420,8 +420,9 @@ mod tests {
     use super::*;
     use soroban_sdk::testutils::Address as _;
 
-    /// Minimal V3 pool stub: only `get_current_tick` is needed to exercise
-    /// `compute_range` via the public `preview_range` entry point.
+    /// Minimal V3 pool stub: `get_current_tick` is needed to exercise
+    /// `compute_range` via the public `preview_range` entry point, and
+    /// `get_tokens` is needed so `initialize`'s token-pair validation passes.
     #[contract]
     struct MockV3Pool;
 
@@ -430,6 +431,49 @@ mod tests {
         pub fn get_current_tick(_env: Env) -> i32 {
             1_000
         }
+
+        pub fn get_tokens(env: Env) -> (Address, Address) {
+            (
+                env.storage().instance().get(&0u32).unwrap(),
+                env.storage().instance().get(&1u32).unwrap(),
+            )
+        }
+
+        pub fn set_tokens(env: Env, token_a: Address, token_b: Address) {
+            env.storage().instance().set(&0u32, &token_a);
+            env.storage().instance().set(&1u32, &token_b);
+        }
+    }
+
+    /// Minimal V2 pool stub: only `get_info` is needed so `initialize`'s
+    /// token-pair validation passes; `preview_range` never calls it.
+    #[contract]
+    struct MockV2Pool;
+
+    #[contractimpl]
+    impl MockV2Pool {
+        pub fn get_info(env: Env) -> V2PoolInfo {
+            let token_a: Address = env.storage().instance().get(&0u32).unwrap();
+            let token_b: Address = env.storage().instance().get(&1u32).unwrap();
+            V2PoolInfo {
+                token_a,
+                token_b,
+                reserve_a: 0,
+                reserve_b: 0,
+                total_shares: 0,
+                fee_bps: 0,
+                flash_loan_fee_bps: 0,
+                admin: env.current_contract_address(),
+                fee_recipient: env.current_contract_address(),
+                protocol_fee_bps: 0,
+                lp_rebate_bps: 0,
+            }
+        }
+
+        pub fn set_v2_tokens(env: Env, token_a: Address, token_b: Address) {
+            env.storage().instance().set(&0u32, &token_a);
+            env.storage().instance().set(&1u32, &token_b);
+        }
     }
 
     fn setup() -> (Env, Address) {
@@ -437,8 +481,14 @@ mod tests {
         env.mock_all_auths();
 
         let admin = Address::generate(&env);
-        let v2_pool = Address::generate(&env); // unused by preview_range
+        let token_a = Address::generate(&env);
+        let token_b = Address::generate(&env);
+
+        let v2_pool = env.register_contract(None, MockV2Pool);
+        MockV2PoolClient::new(&env, &v2_pool).set_v2_tokens(&token_a, &token_b);
+
         let v3_pool = env.register_contract(None, MockV3Pool);
+        MockV3PoolClient::new(&env, &v3_pool).set_tokens(&token_a, &token_b);
 
         let contract_addr = env.register_contract(None, MigrationContract);
 

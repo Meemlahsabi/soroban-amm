@@ -5,8 +5,7 @@
 
 use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env, Symbol, Vec};
 
-use amm::AmmPoolClient;
-use factory::FactoryClient;
+use pool_interfaces::{AmmPoolClient, FactoryClient};
 use soroban_amm_sdk::emit_versioned_event;
 
 const MIN_TTL: u32 = 172_800;

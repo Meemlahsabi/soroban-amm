@@ -6,8 +6,7 @@ use soroban_sdk::{
     contract, contractclient, contracterror, contractimpl, contracttype, vec, Address, Env, Vec,
 };
 
-use amm::AmmPoolClient;
-use factory::FactoryClient;
+use pool_interfaces::{AmmPoolClient, FactoryClient};
 
 const MIN_TTL: u32 = 172_800;
 const BUMP_TO: u32 = 518_400;
@@ -726,7 +725,9 @@ mod tests {
         env.mock_all_auths();
         agg.register_cl_pool(&cl_pool, &token_a, &token_b, &30_i128);
 
-        let tokens = DexAggregator::discover_tokens(&env, &token_a, &token_b);
+        let tokens = env.as_contract(&agg_addr, || {
+            DexAggregator::discover_tokens(&env, &token_a, &token_b)
+        });
         assert_eq!(tokens.len(), 2);
 
         let mut found_a = false;
