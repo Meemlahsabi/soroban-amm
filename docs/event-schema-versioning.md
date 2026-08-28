@@ -156,6 +156,7 @@ contract.
 | `multisig_set` | `admin` | `(quorum: u32)` |
 | `ms_proposed` | `signer` | `(recipient: Address, approvals: u32)` |
 | `ms_ew` | `signer` | `(to: Address, reserve_a: i128, reserve_b: i128)` |
+| `force_unlock` | — | `(timestamp: u64)` |
 
 The two swap payload variants and all configuration payloads above are emitted
 by the current source. Consumers should use the event topic and the global
@@ -211,3 +212,11 @@ this catalogue. It may decode a version it explicitly supports, quarantine a
 newer version, and ignore an unknown topic. A payload shape change requires a
 single global version bump even if the change affects only one event; adding a
 new topic does not require a bump by itself.
+
+## Update (#698)
+
+`contracts/amm/src/lib.rs` gained one more versioned emit site: the new
+admin/multisig-gated `force_unlock` recovery function emits a `force_unlock`
+event through `emit_versioned_event!`, consistent with every other
+state-mutating call in this contract. The row for it is listed in the
+Constant-product AMM event table above.
